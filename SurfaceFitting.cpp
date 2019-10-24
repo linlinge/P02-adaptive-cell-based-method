@@ -1,6 +1,6 @@
 #include "SurfaceFitting.h"
 /********************************************************************************************************************/
-//												   Surface Fitting
+//												   Internal Function
 /********************************************************************************************************************/
 Mat SurfaceFitting::Poly33(Mat& x, Mat& y, Mat& z)
 {	
@@ -42,30 +42,20 @@ Mat SurfaceFitting::Poly33(Mat& x, Mat& y, Mat& z)
 		A.at<double>(i,8)=datx*pow(daty,2);
 		A.at<double>(i,9)=pow(daty,3);
 	}
-	P_=(A.t()*A).inv(CV_SVD)*A.t()*z;
-	return P_;
+	Mat P=(A.t()*A).inv(CV_SVD)*A.t()*z;
+	return P;
 }
 
-Mat SurfaceFitting::Poly33(pcl::PointCloud<PointType>::Ptr cloud)
-{	
-	cloud_=cloud;
-	int n=cloud->points.size();
-	Mat x=Mat_<double>(n,1);
-	Mat y=Mat_<double>(n,1);
-	Mat z=Mat_<double>(n,1);
-	
-	for(int i=0;i<n;i++)
-	{
-		x.at<double>(i,0)=cloud->points[i].x;
-		y.at<double>(i,0)=cloud->points[i].y;
-		z.at<double>(i,0)=cloud->points[i].z;
-	}
-	
-	Poly33(x,y,z);
-	return P_;
+double SurfaceFitting::AlgebraicDistacne(double datx, double daty, double datz)
+{
+	double denominator= abs(datz - CalculateZ(datx,daty));
+	double partial_x=-(P_.at<double>(1,0) + 2*P_.at<double>(3,0)*datx + P_.at<double>(4,0)*daty + 3*P_.at<double>(6,0)*pow(daty,2) + 2*P_.at<double>(7,0)*datx*daty + P_.at<double>(8,0)*pow(daty,2));
+	double partial_y=-(P_.at<double>(2,0) + P_.at<double>(4,0)*datx + 2*P_.at<double>(5,0)*daty + P_.at<double>(7,0)*pow(datx,2) + 2*P_.at<double>(8,0)*datx*daty + 3*P_.at<double>(9,0)*pow(daty,2));
+	double numerator= sqrt(pow(partial_x,2)+pow(partial_y,2)+1);	
+	return denominator/numerator;
 }
 
-double SurfaceFitting::Calculate(double datx,double daty)
+double SurfaceFitting::CalculateZ(double datx, double daty)
 {
 	if(P_.rows==10) // Poly33
 	{
@@ -76,6 +66,7 @@ double SurfaceFitting::Calculate(double datx,double daty)
 	else
 		return -1;
 }
+
 
 void SurfaceFitting::DrawSurface(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
@@ -91,7 +82,7 @@ void SurfaceFitting::DrawSurface(boost::shared_ptr<pcl::visualization::PCLVisual
 			PointType ptmp;
 			ptmp.x=xval;
 			ptmp.y=yval;
-			ptmp.z=Calculate(xval,yval);
+			ptmp.z=CalculateZ(xval,yval);
 			ptmp.r=0;
 			ptmp.g=0;
 			ptmp.b=0;
@@ -106,24 +97,54 @@ void SurfaceFitting::DrawSurface(boost::shared_ptr<pcl::visualization::PCLVisual
 	
 	//Add the demostration point cloud data
 	viewer->addPointCloud<PointType> (cloud, multi_color, "surface");
-
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "surface");
-	
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "surface");	
 	pcl::io::savePLYFileASCII("fitting-surface.ply",*cloud);
 }
 
-double SurfaceFitting::AlgebraicDistacne(double datx, double daty, double datz)
-{
-	double denominator= abs(datz - Calculate(datx,daty));
-	double partial_x=-(P_.at<double>(1,0) + 2*P_.at<double>(3,0)*datx + P_.at<double>(4,0)*daty + 3*P_.at<double>(6,0)*pow(daty,2) + 2*P_.at<double>(7,0)*datx*daty + P_.at<double>(8,0)*pow(daty,2));
-	double partial_y=-(P_.at<double>(2,0) + P_.at<double>(4,0)*datx + 2*P_.at<double>(5,0)*daty + P_.at<double>(7,0)*pow(datx,2) + 2*P_.at<double>(8,0)*datx*daty + 3*P_.at<double>(9,0)*pow(daty,2));
-	double numerator= sqrt(pow(partial_x,2)+pow(partial_y,2)+1);	
-	return denominator/numerator;
+
+/********************************************************************************************************************/
+//												   External Function
+/********************************************************************************************************************/
+void SurfaceFitting::FittingBasedOnPoly33(pcl::PointCloud<PointType>::Ptr cloud, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
+{	
+	cloud_=cloud;
+	int n=cloud->points.size();
+	Mat x=Mat_<double>(n,1);
+	Mat y=Mat_<double>(n,1);
+	Mat z=Mat_<double>(n,1);
+	
+	for(int i=0;i<n;i++)
+	{
+		x.at<double>(i,0)=cloud->points[i].x;
+		y.at<double>(i,0)=cloud->points[i].y;
+		z.at<double>(i,0)=cloud->points[i].z;
+	}
+	
+	Poly33(x,y,z);	
+	if(viewer!=NULL)
+		DrawSurface(viewer);
 }
 
-void SurfaceFitting::CalculateErrors()
+void SurfaceFitting::FittingBasedOnRansac(pcl::PointCloud<PointType>::Ptr cloud, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
+	// Random Selection
+	pcl::PointCloud<PointType>::Ptr maybe_inlier(new pcl::PointCloud<PointType>);
+	Statistics st;
+	vector<int> maybe_inlier_idx=st.GenerateRandomIntSet(20,0,cloud->points.size()-1);
+	sort(maybe_inlier_idx.begin(),maybe_inlier_idx.end());
+	vector<int>::iterator it=unique(maybe_inlier_idx.begin(),maybe_inlier_idx.end());
+	maybe_inlier_idx.erase(it,maybe_inlier_idx.end());
+	for(int i=0;i<maybe_inlier_idx.size();i++)
+		maybe_inlier->points.push_back(cloud->points[maybe_inlier_idx[i]]);
 	
+	// maybe model
+	FittingBasedOnPoly33(maybe_inlier);
+	
+	
+}
+
+void  SurfaceFitting::GetModelError()
+{
 	for(int i=0;i<cloud_->points.size();i++)
 	{
 		double dist_tmp=AlgebraicDistacne(cloud_->points[i].x,cloud_->points[i].y,cloud_->points[i].z);

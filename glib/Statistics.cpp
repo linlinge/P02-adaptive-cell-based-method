@@ -26,3 +26,14 @@ Statistics::Statistics(vector<float> dat)
 	stdevp_=sqrt(sum/dat.size());
 	stdev_=sqrt(sum/(dat.size()-1));
 }
+
+vector<int> Statistics::GenerateRandomIntSet(int n,int min,int max)
+{
+	vector<int> dat;
+	dat.resize(n);
+	int range=max-min;
+	for(int i=0;i<n;i++){
+		dat[i]=rand()%range+min;
+	}
+	return dat;
+}

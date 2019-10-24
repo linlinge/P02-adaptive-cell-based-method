@@ -5,13 +5,14 @@
 #include <time.h>
 #include <stdio.h>
 #include "HierachicalOutlierRemoval.h"
+#include "Statistics.h"
 using namespace std;
 
 int main(int argc, char** argv)
 {
     pcl::PointCloud<PointType>::Ptr cloud(new pcl::PointCloud<PointType>);
 
-    if (pcl::io::loadPLYFile<PointType>(argv[1], *cloud) == -1) // load the file
+    if(pcl::io::loadPLYFile<PointType>(argv[1], *cloud) == -1) // load the file
     {
         PCL_ERROR("Couldn't read file test_pcd.pcd \n");
         return (-1);
@@ -19,9 +20,18 @@ int main(int argc, char** argv)
 	
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
 	
-	HierachicalOutlierRemoval hor;
-	hor.GetLeafShow(cloud,viewer);
-	hor.PatchFittingAndRendering(cloud,viewer);
+	
+	/* HierachicalOutlierRemoval hor;
+	hor.GetLeafShow(cloud,viewer); */
+	//hor.PatchFittingAndRendering(cloud,viewer); 
+	
+	
+	/* SurfaceFitting sf;
+	sf.FittingBasedOnPoly33(cloud);
+	sf.DrawSurface(viewer); */
+	
+	
+	
 		
     viewer->setBackgroundColor (1.0f, 1.0f, 1.0f);	
 	

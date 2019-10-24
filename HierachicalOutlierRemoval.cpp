@@ -13,7 +13,7 @@ void HierachicalOutlierRemoval::GetLeafShow(pcl::PointCloud<PointType>::Ptr clou
 	double mean_dist=ComputeMeanDistance(cloud);
     
 	// 最小体素的边长
-	float resolution = 40*mean_dist;
+	float resolution = 80*mean_dist;
 	pcl::octree::OctreePointCloudSearch<PointType> octree(resolution);
 
 	//octree.setTreeDepth(8);
@@ -88,9 +88,6 @@ void HierachicalOutlierRemoval::GetLeafShow(pcl::PointCloud<PointType>::Ptr clou
 		}
 	}
 	
-	
-		
-
 	// find voxel who is outlier
 	 vector<double> statistic_tmp=StatisticNearestDistance(voxel_record);
 	 
@@ -129,7 +126,7 @@ void HierachicalOutlierRemoval::GetLeafShow(pcl::PointCloud<PointType>::Ptr clou
 	
 
 	// print the result
-	pcl::io::savePLYFileASCII("1.ply",*cloud);
+	pcl::io::savePLYFileASCII("color_patch.ply",*cloud);
 	cout << "深度: "<< depth << endl;
 	cout << "叶子节点个数:" << octree.getLeafCount() << endl;
 	cout<<"number of points in cloud: "<<cloud->points.size()<<endl;
@@ -164,7 +161,7 @@ void HierachicalOutlierRemoval::FittingBasedOutlierRemoval(pcl::PointCloud<Point
 				}
 				
 				SurfaceFitting sf;
-				sf.Poly33(cloud_tmp);
+				sf.FittingBasedOnPoly33(cloud_tmp);
 				for(int j=0;j<pointIdxNKNSearch.size();j++)
 				{
 					int itmp=pointIdxNKNSearch[j];
@@ -215,7 +212,7 @@ void HierachicalOutlierRemoval::RANSACFittingBasedOutlierRemoval(pcl::PointCloud
 				}
 				
 				SurfaceFitting sf;
-				sf.Poly33(cloud_tmp);
+				sf.FittingBasedOnPoly33(cloud_tmp);
 				for(int j=0;j<pointIdxNKNSearch.size();j++)
 				{
 					int itmp=pointIdxNKNSearch[j];
@@ -241,7 +238,7 @@ void HierachicalOutlierRemoval::RANSACFittingBasedOutlierRemoval(pcl::PointCloud
 void HierachicalOutlierRemoval::PatchFittingAndRendering(pcl::PointCloud<PointType>::Ptr cloud,boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
 	SurfaceFitting sf;	
-	sf.Poly33(cloud);
+	sf.FittingBasedOnPoly33(cloud);
 	
 	vector<float> dist;
 	for(int i=0;i<cloud->points.size();i++)
@@ -262,5 +259,6 @@ void HierachicalOutlierRemoval::PatchFittingAndRendering(pcl::PointCloud<PointTy
 	}
 	sf.DrawSurface(viewer);
 	
-	pcl::io::savePLYFileASCII("Patch_rendered.ply",*cloud);
+	pcl::io::savePLYFileASCII("Patch_fitting_rendered.ply",*cloud);
+	cout<<"End!"<<endl;
 }

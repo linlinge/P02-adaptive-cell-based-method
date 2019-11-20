@@ -32,6 +32,9 @@ public:
 	float A_, B_, C_, D_;
 	Plane(V3 P1, V3 P2, V3 P3);
 	V3 IsIntersect(Line& dat);
+	float Distance(V3 dat){
+		return abs((A_*dat.x+B_*dat.y+C_*dat.z+D_)/sqrt(A_*A_+B_*B_+C_*C_));	
+	}
 };
 
 class Angle

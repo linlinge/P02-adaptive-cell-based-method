@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "HierachicalOutlierRemoval.h"
 #include "Statistics.h"
+#include "BasicGeometry.h"
+#include "V3.hpp"
 using namespace std;
 
 int main(int argc, char** argv)
@@ -21,18 +23,24 @@ int main(int argc, char** argv)
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
 	
 	
-	/* HierachicalOutlierRemoval hor;
-	hor.GetLeafShow(cloud,viewer); */
+	/* 
+		HierachicalOutlierRemoval hor;
+		hor.GetLeafShow(cloud,viewer); 
+	*/
+	
 	//hor.PatchFittingAndRendering(cloud,viewer); 
 	
 	
-	/* SurfaceFitting sf;
-	sf.FittingBasedOnPoly33(cloud);
-	sf.DrawSurface(viewer); */
+	HierachicalOutlierRemoval hor(cloud);
+	hor.Type3RemovalBasedOnRansac(PLANE);
 	
+	/*
+		SurfaceFitting sf;
+		sf.FittingBasedOnRansac(cloud,PLANE,viewer);
+	*/
 	
+	//CalculateEigenvalue(cloud);
 	
-		
     viewer->setBackgroundColor (1.0f, 1.0f, 1.0f);	
 	
     //设置点云颜色，该处为单一颜色设置

@@ -1,138 +1,44 @@
 #include "HierachicalOutlierRemoval.h"
 
-void HierachicalOutlierRemoval::GetLeafShow(pcl::PointCloud<PointType>::Ptr cloud, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
+HierachicalOutlierRemoval::HierachicalOutlierRemoval(pcl::PointCloud<PointType>::Ptr cloud)
 {
-	// voxel record
-	pcl::PointCloud<PointType>::Ptr voxel_record(new pcl::PointCloud<PointType>);
-		
-	// 存储体素的下标
-	map<int, vector<Eigen::Vector3f>> _bodyVoxel;
-
-	// 存储叶子节点
-	//pcl::PointCloud<PointType>::Ptr  cloudLeaf(new pcl::PointCloud<PointType>);
-	double mean_dist=ComputeMeanDistance(cloud);
-    
-	// 最小体素的边长
-	float resolution = 80*mean_dist;
-	pcl::octree::OctreePointCloudSearch<PointType> octree(resolution);
-
-	//octree.setTreeDepth(8);
-	octree.setInputCloud(cloud);
+	cloud_filtered_=pcl::PointCloud<PointType>::Ptr(new pcl::PointCloud<PointType>);	
+	cloud_outlier_=pcl::PointCloud<PointType>::Ptr(new pcl::PointCloud<PointType>);	
+	if(cloud!=NULL)
+		cloud_=cloud;
 	
-	// 从输入点云构建八叉树
-	octree.addPointsFromInputCloud();
-	
-	// PointType searchPoint;
-	int depth = octree.getTreeDepth();
-	vector<Eigen::Vector3f> list_min;
-	vector<Eigen::Vector3f> list_max;
-	
-	// 求出体素边界
-	srand( (unsigned)time( NULL ) );
-	for (auto it = octree.begin(depth);it != octree.end();++it){	
-		if(it.isLeafNode()){
-			// caclulate voxel centre
-			Eigen::Vector3f  voxel_min, voxel_max;
-			octree.getVoxelBounds(it, voxel_min, voxel_max);
-			Eigen::Vector3f voxel_centre;
-			voxel_centre=(voxel_min+voxel_max)/2.0f;		
-			
-			// establish voxel point cloud
-			PointType pt = PointType(255, 0, 0);
-			pt.x=voxel_centre.x();
-			pt.y=voxel_centre.y();
-			pt.z=voxel_centre.z();
-			voxel_record->points.push_back(pt);							
-			list_min.push_back(voxel_min);
-			list_max.push_back(voxel_max);
-			
-			// Get points indices in each voxel
-			auto leaf = it.getLeafContainer();
-			std::vector<int> indices; 
-			leaf.getPointIndices(indices);
-			
-			// extract point set in voxel
-			
-				pcl::PointCloud<PointType>::Ptr cloud_tmp(new pcl::PointCloud<PointType>);
-				float r=rand()%100/100.0*255;
-				float g=rand()%100/100.0*255;
-				float b=rand()%100/100.0*255;
-				for(int i=0;i<indices.size();i++)
-				{
-					cloud->points[indices[i]].r=r;
-					cloud->points[indices[i]].g=g;
-					cloud->points[indices[i]].b=b;
-					cloud_tmp->points.push_back(cloud->points[indices[i]]);
-				}
-				
-				/* SurfaceFitting sf;
-				sf.Poly33(cloud_tmp);
-				for(int i=0;i<indices.size();i++)
-				{
-					double dist_tmp=sf.AlgebraicDistacne(cloud->points[indices[i]].x,cloud->points[indices[i]].y,cloud->points[indices[i]].z);
-					//cout<<dist_tmp<<endl;
-					if(dist_tmp>0.0004)
-					{
-						cloud->points[indices[i]].r=255;
-						cloud->points[indices[i]].g=0;
-						cloud->points[indices[i]].b=0;
-					}
-					else
-					{
-						cloud->points[indices[i]].r=0;
-						cloud->points[indices[i]].g=255;
-						cloud->points[indices[i]].b=0;
-					}
-				} 
-			*/
-		}
-	}
-	
-	// find voxel who is outlier
-	 vector<double> statistic_tmp=StatisticNearestDistance(voxel_record);
-	 
-	/*
-	ofstream fout("1.txt");
-	for(int i=0;i<statistic_tmp.size();i++)
-	{
-		fout<<statistic_tmp[i]<<endl;
-	}
-	fout.close(); 
-	*/
-	
-	
-	// show outlier voxel  
-	/* Statistics st(statistic_tmp);
-	double list_mean=st.Mean();
-	double list_var=st.Variance(1);
-	double thresh=list_mean+50*list_var;
-	for(int i=0;i<list_min.size();i++){
-		if(statistic_tmp[i]>thresh)
-			viewer->addCube(list_min[i].x(), list_max[i].x(), list_min[i].y(), list_max[i].y(), list_min[i].z(), list_max[i].z(), 1, 0, 0, std::to_string(i));
-		else
-			viewer->addCube(list_min[i].x(), list_max[i].x(), list_min[i].y(), list_max[i].y(), list_min[i].z(), list_max[i].z(), 0, 1, 0, std::to_string(i));
-	} 
-	*/
-	
-	
-	
-	/* srand( (unsigned)time( NULL ) );	
-	for(int i=0;i<list_min.size();i++){
-		float r=rand()%100/100.0;
-		float g=rand()%100/100.0;
-		float b=rand()%100/100.0;
-		viewer->addCube(list_min[i].x(), list_max[i].x(), list_min[i].y(), list_max[i].y(), list_min[i].z(), list_max[i].z(), r,g,b, std::to_string(i));
-	}   */
-	
-
-	// print the result
-	pcl::io::savePLYFileASCII("color_patch.ply",*cloud);
-	cout << "深度: "<< depth << endl;
-	cout << "叶子节点个数:" << octree.getLeafCount() << endl;
-	cout<<"number of points in cloud: "<<cloud->points.size()<<endl;
-	cout<<"voxel size:"<<voxel_record->points.size()<<endl;
+	mean_dist_=ComputeMeanDistance(cloud_);
 }
 
+/*********************************************************************************************************
+										Internal Function
+**********************************************************************************************************/
+void HierachicalOutlierRemoval::SplitIntoPrimitives(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
+{
+	// voxel record
+	pcl::PointCloud<PointType>::Ptr voxel_record(new pcl::PointCloud<PointType>);	
+    
+	// 最小体素的边长
+	float resolution = 15*mean_dist_;
+	octree_=pcl::octree::OctreePointCloudSearch<PointType>::Ptr(new pcl::octree::OctreePointCloudSearch<PointType>(resolution));
+	octree_->setInputCloud(cloud_);	
+	octree_->addPointsFromInputCloud();// 从输入点云构建八叉树
+	
+	/* if(viewer!=NULL){
+		for (auto it = octree_->begin(depth);it != octree_->end();++it){	
+			if(it.isLeafNode()){
+				// Get all points indices in each voxel
+				auto leaf = it.getLeafContainer();
+				std::vector<int> indices;
+				leaf.getPointIndices(indices);
+			}
+		}
+	} */
+}
+
+/*********************************************************************************************************
+										External Function
+**********************************************************************************************************/
 void HierachicalOutlierRemoval::FittingBasedOutlierRemoval(pcl::PointCloud<PointType>::Ptr cloud, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
 	vector<int> idx;
@@ -184,55 +90,89 @@ void HierachicalOutlierRemoval::FittingBasedOutlierRemoval(pcl::PointCloud<Point
 	}
 }
 
-void HierachicalOutlierRemoval::RANSACFittingBasedOutlierRemoval(pcl::PointCloud<PointType>::Ptr cloud, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
+void HierachicalOutlierRemoval::Type3RemovalBasedOnRansac(MODEL mode, pcl::PointCloud<PointType>::Ptr cloud, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
-	vector<int> idx;
-	for(int i=0;i<cloud->points.size();i++) idx.push_back(i);
+	struct timeval start, end;
+	mode_=mode;
+	if(cloud!=NULL)
+		cloud_=cloud;
 	
-	double mean_dist=ComputeMeanDistance(cloud);
-	int K=500;
-	vector<int> pointIdxNKNSearch(K);
-	vector<float> pointNKNSquaredDistance(K); 	
-	pcl::search::KdTree<PointType>::Ptr kdtree(new pcl::search::KdTree<PointType>());
-	kdtree->setInputCloud(cloud);
+	gettimeofday(&start, NULL);
+	SplitIntoPrimitives();
+	gettimeofday(&end, NULL);
+	cout<<"SplitIntoPrimitives:"<<ELAPSED(start,end)<<" (s)"<<endl;
+			
+	int depth = octree_->getTreeDepth();
+	int count=0;	
+	// Traversing leaf node
+	//#pragma omp parallel for
+	pcl::PointCloud<PointType>::Ptr ctmp(new pcl::PointCloud<PointType>);
+	/* #pragma omp parallel num_threads(6)
+	{ */	
+		for(auto it = octree_->begin(depth);it!= octree_->end();++it){
+			/* #pragma omp single nowait
+			{ */
+				if(it.isLeafNode()){
+					// Get all points indices in each voxel
+					//gettimeofday(&start, NULL);
+					auto leaf = it.getLeafContainer();
+					std::vector<int> indices; 			
+					leaf.getPointIndices(indices);
 
-	for(int i=0;i<idx.size();i++)
-	{	
-		if(idx[i]!=-1)
-		{
-			if ( kdtree->nearestKSearch (cloud->points[idx[i]], K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){				
-				
-				// extract temp cloud
-				pcl::PointCloud<PointType>::Ptr cloud_tmp(new pcl::PointCloud<PointType>);
-				for(int j=0;j<pointIdxNKNSearch.size();j++){
-					// fill temp cloud
-					cloud_tmp->points.push_back(cloud->points[pointIdxNKNSearch[j]]);
-					// disable neighbour points
-					idx[pointIdxNKNSearch[j]]=-1;
-				}
-				
-				SurfaceFitting sf;
-				sf.FittingBasedOnPoly33(cloud_tmp);
-				for(int j=0;j<pointIdxNKNSearch.size();j++)
-				{
-					int itmp=pointIdxNKNSearch[j];
-					double dist_tmp=sf.AlgebraicDistacne(cloud->points[itmp].x,cloud->points[itmp].y,cloud->points[itmp].z);
-					if(dist_tmp>0.1*mean_dist)
-					{
-						cloud->points[itmp].r=255;
-						cloud->points[itmp].g=0;
-						cloud->points[itmp].b=0;
+					// Step 01: Get all points in this cloud
+					gettimeofday(&start, NULL);
+					ctmp->points.clear();
+					for(int i=0;i<indices.size();i++){
+						ctmp->points.push_back(cloud_->points[indices[i]]);
+						cloud_->points[indices[i]].r=255;
+						cloud_->points[indices[i]].g=0;
+						cloud_->points[indices[i]].b=0;
 					}
-					else
-					{
-						cloud->points[itmp].r=0;
-						cloud->points[itmp].g=255;
-						cloud->points[itmp].b=0;
+					gettimeofday(&end, NULL);
+					//cout<<"Step01:"<<ELAPSED(start,end)<<" (s)"<<endl;					
+					//cout<<count++<<" "<<ctmp->points.size()<<endl;
+					
+					if(ctmp->points.size()>=4){
+						// Step 02: Is it required to load use Ransac
+						gettimeofday(&start, NULL);
+						double eigval=CalculateEigenvalue(ctmp);
+						gettimeofday(&end, NULL);
+						//cout<<"Step02:"<<ELAPSED(start,end)<<" (s)"<<endl;
+						
+						if(eigval>0.0000005){
+							// Step 03: Ransac and Plane
+							gettimeofday(&start, NULL);
+							SurfaceFitting sf;
+							sf.FittingBasedOnRansac(ctmp,mode);
+							//sf.GetModelError();
+							for(int i=0;i<sf.inlier_idx_.size();i++)
+								cloud_filtered_->points.push_back(ctmp->points[sf.inlier_idx_[i]]);															
+
+							for(int i=0;i<sf.outlier_idx_.size();i++)
+								cloud_outlier_->points.push_back(ctmp->points[sf.outlier_idx_[i]]);
+							
+							gettimeofday(&end, NULL);
+							//cout<<"Step03:"<<ELAPSED(start,end)<<" (s)"<<endl;
+						}
+						else{
+							count++; 
+							for(int i=0;i<ctmp->points.size();i++)
+								cloud_filtered_->points.push_back(ctmp->points[i]); 
+						}
+					}
+					else{
+						for(int i=0;i<ctmp->points.size();i++)
+							cloud_filtered_->points.push_back(ctmp->points[i]);
 					}
 				}
-			}
-		}
-	}
+			//}
+		}		
+	//}
+	printf("(%d,%d,%d)",cloud_->points.size(),cloud_filtered_->points.size(),cloud_outlier_->points.size());
+	pcl::io::savePLYFileASCII("cloud_.ply",*cloud_);
+	pcl::io::savePLYFileASCII("cloud_filtered.ply",*cloud_filtered_);
+	pcl::io::savePLYFileASCII("cloud_outlier.ply",*cloud_outlier_);		
+	cout<<endl<<"end!"<<endl;
 }
 
 void HierachicalOutlierRemoval::PatchFittingAndRendering(pcl::PointCloud<PointType>::Ptr cloud,boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)

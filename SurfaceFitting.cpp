@@ -170,7 +170,7 @@ void SurfaceFitting::FittingBasedOnPoly33(pcl::PointCloud<PointType>::Ptr cloud,
 void SurfaceFitting::FittingBasedOnRansac(pcl::PointCloud<PointType>::Ptr cloud, MODEL type, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer)
 {
 	//cout<<"1"<<endl;
-	int n=10;
+	int n=20;
 	mode_=type;
 	cloud_=cloud;
 	double mean_dist=ComputeMeanDistance(cloud);

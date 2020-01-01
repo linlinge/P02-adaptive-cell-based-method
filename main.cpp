@@ -31,13 +31,13 @@ int main(int argc, char** argv)
 	//hor.PatchFittingAndRendering(cloud,viewer); 
 	
 	
-	HierachicalOutlierRemoval hor(cloud);
-	hor.Type3RemovalBasedOnRansac(PLANE);
+	// HierachicalOutlierRemoval hor(cloud);
+	// hor.Type3RemovalBasedOnRansac(PLANE);
 	
-	/*
-		SurfaceFitting sf;
-		sf.FittingBasedOnRansac(cloud,PLANE,viewer);
-	*/
+	
+    SurfaceFitting sf;
+    sf.FittingBasedOnRansac(cloud,PLANE,viewer);
+	
 	
 	//CalculateEigenvalue(cloud);
 	
